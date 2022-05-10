@@ -189,7 +189,9 @@ def class_tree(obj):
 def _verify_type_constraint(v, t):
     if Mock and isinstance(v, Mock):
         return True
-    if t is range_type and hasattr(v, '__iter__') and callable(v.__iter__):
+    if isinstance(t, Enum):
+        return v in t
+    elif t is range_type and hasattr(v, '__iter__') and callable(v.__iter__):
         return True
     elif isinstance(t, type):
         return isinstance(v, t)
@@ -364,3 +366,13 @@ def typed(fn):
 
     fn.__annotations__ = {}
     return fn
+
+
+class Enum(object):
+    __slots__ = ('enums',)
+
+    def __init__(self, *enums):
+        self.enums = enums
+
+    def __iter__(self):
+        return iter(self.enums)
