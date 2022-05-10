@@ -1,12 +1,10 @@
 # Tests using Python3-specific syntax
 from unittest import TestCase, main
 
-from typedecorator import typed, setup_typecheck
+from typedecorator import typed
 
 
 class TestPython3Annotations(TestCase):
-    def setUp(self):
-        setup_typecheck()
 
     def test_typed(self):
 

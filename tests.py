@@ -2,14 +2,10 @@ import pickle
 from sys import version_info
 from unittest import TestCase, TestLoader, TextTestRunner
 
-from typedecorator import (params, returns, void, setup_typecheck, Union,
-    Nullable)
+from typedecorator import (params, returns, void, Union, Nullable)
 
 
 class TestTypeSignatures(TestCase):
-
-    def setUp(self):
-        setup_typecheck()
 
     def test_params_builtin_type(self):
         @params(a=int)
@@ -176,9 +172,6 @@ class TestTypeSignatures(TestCase):
 
 class TestParams(TestCase):
 
-    def setUp(self):
-        setup_typecheck()
-
     def test_params_args_kwargs(self):
         @params(a=int, b=str)
         def foo(a, b):
@@ -204,9 +197,6 @@ class TestParams(TestCase):
 
 
 class TestReturns(TestCase):
-
-    def setUp(self):
-        setup_typecheck()
 
     def test_returns(self):
         @returns(int)
@@ -247,8 +237,6 @@ class TestSetup(TestCase):
         class MyError(Exception):
             pass
 
-        setup_typecheck(exception=MyError)
-
         @returns(int)
         def foo():
             pass
@@ -256,7 +244,6 @@ class TestSetup(TestCase):
         self.assertRaises(MyError, lambda: foo())
 
     def test_disabled_exception(self):
-        setup_typecheck()
 
         @returns(int)
         def foo():
@@ -264,16 +251,11 @@ class TestSetup(TestCase):
 
         self.assertRaises(TypeError, lambda: foo())
 
-        setup_typecheck(exception=None)
-
         # should not raise anything any more
         foo()
 
 
 class TestMethodAnnotation(TestCase):
-
-    def setUp(self):
-        setup_typecheck()
 
     def test_class_instance_methods(self):
 

@@ -85,8 +85,7 @@ import traceback
 
 __version__ = '0.0.5'
 
-__all__ = ['returns', 'void', 'params', 'setup_typecheck', 'Union',
-    'Nullable', 'typed']
+__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'typed']
 
 try:
     from mock import Mock
@@ -103,68 +102,12 @@ try:
 except NameError:
     string_type = str
 
-_decorator_enabled = True  # whether the decorators should install the wrappers
-_enabled = False  # whether the wrappers should do anything at runtime
 _logger = logging.getLogger(__name__)
 _loglevel = None  # logging.LOGLEVEL to use
-_exception = False  # exception to throw on type error (eg. TypeError)
-
-
-def setup_typecheck(enabled=True, exception=TypeError, loglevel=None):
-    """
-    Enable and configure type checking
-
-    Call this function once to configure how the type checking subystem should
-    behave. Calling it multiple times only updates the configuration values,
-    and can be used to disabling and re-enabling the checks at runtime.
-
-    :param bool enabled:
-        Whether to enable type checks of any kind (default: True).
-    :param Exception exception:
-        Which exception to raise if type check fails (default: TypeError)
-        Setting this to None disables raising the exception.
-    :param int loglevel:
-        Log level at which to log the type error (default: None), see the
-        standard `logging` module for possible levels. If None, disables
-        logging the type error.
-
-    By default, the type checking system is inactive unless activated through
-    this function. However, the type-checking wrappers are in place, so the
-    type checking can be enabled or disabled at runtime (multiple times).
-    These wrappers do incur a very small but real performance cost. If you
-    want to disable the checks at "compile" time, call this function with
-    `enabled=False` *before* defining any functions or methods using the
-    typecheck decorator.
-
-    For example, if you have a `config.py` file with `USE_TYPECHECK` constant
-    specifying whether you want the type checks enabled:
-
-        #!/usr/bin/env python
-
-        from typecheck import setup_typecheck, params
-        import config
-
-        setup_typecheck(enabled=config.USE_TYPECHECK)
-
-        @params(a=int, b=int):
-        def add(a, b):
-            return a + b
-
-    Note that in this case, the checks cannot be enabled at runtime.
-
-    """
-
-    global _decorator_enabled, _enabled, _loglevel, _exception
-
-    _enabled = _decorator_enabled = enabled
-    _exception = exception
-    _loglevel = loglevel
+_exception = TypeError  # exception to throw on type error (eg. TypeError)
 
 
 def _type_error(msg, stack=None):
-    if not _enabled:
-        return
-
     if _loglevel:
         if not stack:
             stack = traceback.extract_stack()[-4]
@@ -259,7 +202,7 @@ def _verify_type_constraint(v, t):
     elif isinstance(t, dict) and isinstance(v, dict):
         tk, tv = list(t.items())[0]
         return all(_verify_type_constraint(vk, tk) and
-            _verify_type_constraint(vv, tv) for vk, vv in v.items())
+                   _verify_type_constraint(vv, tv) for vk, vv in v.items())
     elif isinstance(t, set) and isinstance(v, set):
         tx = list(t)[0]
         return all(_verify_type_constraint(vx, tx) for vx in v)
@@ -285,32 +228,24 @@ def returns(return_type):
     _check_constraint_validity(return_type)
 
     def deco(fn):
-        if not _decorator_enabled:
-            return fn
-
         if not hasattr(fn, '__def_site__'):
             if hasattr(fn, '__code__'):
                 fc = fn.__code__
             else:
                 fc = fn.func_code
-            fn.__def_site__ = (fc.co_filename, fc.co_firstlineno, fn.__name__,
-                '')
+            fn.__def_site__ = (fc.co_filename, fc.co_firstlineno, fn.__name__, '')
 
         def wrapper(*args, **kwargs):
             retval = fn(*args, **kwargs)
-            if _enabled:
-                if not _verify_type_constraint(retval, return_type):
-                    if retval is None and return_type is not type(None):
-                        _type_error("non-void function didn't return a value",
-                            stack=fn.__def_site__)
-                    elif retval is not None and return_type is type(None):
-                        _type_error("void function returned a value",
-                            stack=fn.__def_site__)
-                    else:
-                        _type_error("function returned value %s not matching "
-                            "signature %s" % (repr(retval),
-                                _constraint_to_string(return_type)),
-                            stack=fn.__def_site__)
+            if not _verify_type_constraint(retval, return_type):
+                if retval is None and return_type is not type(None):
+                    _type_error("non-void function didn't return a value", stack=fn.__def_site__)
+                elif retval is not None and return_type is type(None):
+                    _type_error("void function returned a value", stack=fn.__def_site__)
+                else:
+                    _type_error("function returned value %s not matching "
+                                "signature %s" % (repr(retval), _constraint_to_string(return_type)),
+                                stack=fn.__def_site__)
             return retval
 
         wrapper.__name__ = fn.__name__
@@ -318,6 +253,7 @@ def returns(return_type):
         wrapper.__module__ = fn.__module__
         wrapper.__return_type__ = return_type
         return wrapper
+
     return deco
 
 
@@ -355,9 +291,6 @@ def params(**types):
         _check_constraint_validity(arg_type)
 
     def deco(fn):
-        if not _decorator_enabled:
-            return fn
-
         if hasattr(fn, '__return_type__'):
             raise TypeError('You must use @returns before @params')
 
@@ -367,8 +300,7 @@ def params(**types):
             fc = fn.func_code
 
         if not hasattr(fn, '__def_site__'):
-            fn.__def_site__ = (fc.co_filename, fc.co_firstlineno, fn.__name__,
-                '')
+            fn.__def_site__ = (fc.co_filename, fc.co_firstlineno, fn.__name__, '')
         if hasattr(inspect, 'getfullargspec'):
             arg_names, va_args, va_kwargs, _, _, _, _ = inspect.getfullargspec(fn)
         else:
@@ -379,28 +311,28 @@ def params(**types):
             raise TypeError("Annotation doesn't match function signature")
 
         def wrapper(*args, **kwargs):
-            if _enabled:
-                for arg, name in zip(args, arg_names):
-                    if not _verify_type_constraint(arg, types[name]):
-                        _type_error("argument %s = %s doesn't match "
-                            "signature %s" % (name, repr(arg),
-                                _constraint_to_string(types[name])))
+            for arg, name in zip(args, arg_names):
+                if not _verify_type_constraint(arg, types[name]):
+                    _type_error("argument %s = %s doesn't match "
+                                "signature %s" % (name, repr(arg),
+                                                  _constraint_to_string(types[name])))
 
-                for k, v in kwargs.items():
-                    if k not in types:
-                        if not va_kwargs:
-                            _type_error("unknown keyword argument %s "
-                                "(positional specified as keyword?)" % k)
-                    elif not _verify_type_constraint(v, types[k]):
-                        _type_error("keyword argument %s = %s "
-                            "doesn't match signature %s" % (k, repr(v),
-                                _constraint_to_string(types[k])))
+            for k, v in kwargs.items():
+                if k not in types:
+                    if not va_kwargs:
+                        _type_error("unknown keyword argument %s "
+                                    "(positional specified as keyword?)" % k)
+                elif not _verify_type_constraint(v, types[k]):
+                    _type_error("keyword argument %s = %s "
+                                "doesn't match signature %s" % (k, repr(v),
+                                                                _constraint_to_string(types[k])))
             return fn(*args, **kwargs)
 
         wrapper.__name__ = fn.__name__
         wrapper.__doc__ = fn.__doc__
         wrapper.__module__ = fn.__module__
         return wrapper
+
     return deco
 
 
