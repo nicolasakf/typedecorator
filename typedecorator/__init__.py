@@ -85,7 +85,7 @@ import traceback
 
 __version__ = '0.0.5'
 
-__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'typed']
+__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed']
 
 try:
     from mock import Mock
