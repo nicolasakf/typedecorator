@@ -82,14 +82,16 @@ as `dict` and `{object}` is the same as  `set`.
 import inspect
 import logging
 import traceback
+import typing
 
-__version__ = '0.0.5'
+__version__ = '0.1.1'
+
 
 __all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed']
 
 try:
     from mock import Mock
-except:
+except ModuleNotFoundError:
     Mock = None
 
 try:
@@ -173,6 +175,8 @@ def _check_constraint_validity(t):
         return _check_constraint_validity(list(t)[0])
     elif isinstance(t, Union):
         return all(_check_constraint_validity(x) for x in t)
+    elif isinstance(t, (typing._GenericAlias, typing._SpecialForm)):
+        return all(_check_constraint_validity(x) for x in t.__args__)
     else:
         raise TypeError('Invalid type signature')
 
@@ -210,6 +214,15 @@ def _verify_type_constraint(v, t):
         return all(_verify_type_constraint(vx, tx) for vx in v)
     elif isinstance(t, Union):
         return any(_verify_type_constraint(v, tx) for tx in t)
+    elif isinstance(t, typing._GenericAlias):
+        return all(_verify_type_constraint(vx, t[0]) for vx in v.__args__)
+    elif isinstance(t, typing._SpecialForm):
+        if t._name in ('Union', 'Optional'):
+            return any(_verify_type_constraint(vx, t[0]) for vx in v.__args__)
+        elif t._name == 'Any':
+            return True
+        else:
+            raise NotImplementedError(f'invalid typing._SpecialForm type: {t}')
     else:
         return False
 
@@ -308,8 +321,10 @@ def params(**types):
         else:
             arg_names, va_args, va_kwargs, _ = inspect.getargspec(fn)
 
-        if any(arg not in arg_names for arg in types.keys()) \
-                or any(arg not in types for arg in arg_names):
+        for arg in ['self', 'cls']:
+            if (arg in arg_names) and (arg not in types):
+                types[arg] = object
+        if any(arg not in arg_names for arg in types.keys()) or any(arg not in types for arg in arg_names):
             raise TypeError("Annotation doesn't match function signature")
 
         def wrapper(*args, **kwargs):
