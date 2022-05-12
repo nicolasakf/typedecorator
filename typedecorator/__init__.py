@@ -84,7 +84,7 @@ import logging
 import traceback
 import typing
 
-__version__ = '0.1.1'
+__version__ = '0.1.3'
 
 
 __all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed']
@@ -214,9 +214,9 @@ def _verify_type_constraint(v, t):
         return all(_verify_type_constraint(vx, tx) for vx in v)
     elif isinstance(t, Union):
         return any(_verify_type_constraint(v, tx) for tx in t)
-    elif isinstance(t, typing._GenericAlias) and isinstance(v, t):
+    elif isinstance(t, typing._GenericAlias) and isinstance(v, t.__origin__):
         return all(_verify_type_constraint(vx, t[0]) for vx in v.__args__)
-    elif isinstance(t, typing._SpecialForm) and isinstance(v, t):
+    elif isinstance(t, typing._SpecialForm):
         if t._name in ('Union', 'Optional'):
             return any(_verify_type_constraint(vx, t[0]) for vx in v.__args__)
         elif t._name == 'Any':
