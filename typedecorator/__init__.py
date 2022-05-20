@@ -84,10 +84,10 @@ import logging
 import traceback
 import typing
 
-__version__ = '0.1.3'
+__version__ = '0.1.6'
 
 
-__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed']
+__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed', 'NoneType']
 
 try:
     from mock import Mock
@@ -125,20 +125,6 @@ def _type_error(msg, stack=None):
         raise _exception(msg)
 
 
-class Union(object):
-    __slots__ = ('types',)
-
-    def __init__(self, *types):
-        self.types = types
-
-    def __iter__(self):
-        return iter(self.types)
-
-
-def Nullable(t):
-    return Union(t, type(None))
-
-
 def _constraint_to_string(t):
     if isinstance(t, type):
         return t.__name__
@@ -155,6 +141,8 @@ def _constraint_to_string(t):
         return '{%s}' % _constraint_to_string(list(t)[0])
     elif isinstance(t, Union):
         return 'U(%s)' % (', '.join(_constraint_to_string(x) for x in t))
+    elif isinstance(t, Enum):
+        return 'Enum[%s]' % (', '.join(_constraint_to_string(x) for x in t))
     else:
         raise TypeError('Invalid type signature')
 
@@ -175,8 +163,17 @@ def _check_constraint_validity(t):
         return _check_constraint_validity(list(t)[0])
     elif isinstance(t, Union):
         return all(_check_constraint_validity(x) for x in t)
-    elif isinstance(t, (typing._GenericAlias, typing._SpecialForm)):
+    elif isinstance(t, typing._GenericAlias):
         return all(_check_constraint_validity(x) for x in t.__args__)
+    elif isinstance(t,  typing._SpecialForm):
+        if t._name in ('Union', 'Optional'):
+            return any(_check_constraint_validity(x) for x in t.__args__)
+        elif t._name == 'Any':
+            return True
+        else:
+            raise NotImplementedError(f'invalid typing._SpecialForm type: {t}')
+    elif isinstance(t, Enum):
+        return all(_check_constraint_validity(x) for x in t)
     else:
         raise TypeError('Invalid type signature')
 
@@ -383,7 +380,8 @@ def typed(fn):
     return fn
 
 
-class Enum(object):
+# region Utility Types
+class Enum:
     __slots__ = ('enums',)
 
     def __init__(self, *enums):
@@ -391,3 +389,21 @@ class Enum(object):
 
     def __iter__(self):
         return iter(self.enums)
+
+
+def Nullable(t):
+    return Union(t, type(None))
+
+
+NoneType = type(None)
+
+
+class Union:
+    __slots__ = ('types',)
+
+    def __init__(self, *types):
+        self.types = types
+
+    def __iter__(self):
+        return iter(self.types)
+# endregion
