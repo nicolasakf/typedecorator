@@ -83,7 +83,7 @@ import inspect
 import logging
 import traceback
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 
 __all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed', 'NoneType']
 
@@ -174,6 +174,8 @@ def _check_constraint_validity(t):
     elif isinstance(t, set) and len(t) == 1:
         return _check_constraint_validity(list(t)[0])
     elif isinstance(t, Union):
+        return all(_check_constraint_validity(x) for x in t)
+    elif isinstance(t, Enum):
         return all(_check_constraint_validity(x) for x in t)
     else:
         raise TypeError('Invalid type signature')
