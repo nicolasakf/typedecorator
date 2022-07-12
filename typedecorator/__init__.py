@@ -308,8 +308,10 @@ def params(**types):
         else:
             arg_names, va_args, va_kwargs, _ = inspect.getargspec(fn)
 
-        if any(arg not in arg_names for arg in types.keys()) \
-                or any(arg not in types for arg in arg_names):
+        for arg in ['self', 'cls']:
+            if (arg in arg_names) and (arg not in types):
+                types[arg] = object
+        if any(arg not in arg_names for arg in types.keys()) or any(arg not in types for arg in arg_names):
             raise TypeError("Annotation doesn't match function signature")
 
         def wrapper(*args, **kwargs):
