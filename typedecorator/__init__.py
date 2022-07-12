@@ -83,9 +83,9 @@ import inspect
 import logging
 import traceback
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
-__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed']
+__all__ = ['returns', 'void', 'params', 'Union', 'Nullable', 'Enum', 'typed', 'NoneType']
 
 try:
     from mock import Mock
@@ -153,6 +153,8 @@ def _constraint_to_string(t):
         return '{%s}' % _constraint_to_string(list(t)[0])
     elif isinstance(t, Union):
         return 'U(%s)' % (', '.join(_constraint_to_string(x) for x in t))
+    elif isinstance(t, Enum):
+        return 'Enum[%s]' % (', '.join(_constraint_to_string(x) for x in t))
     else:
         raise TypeError('Invalid type signature')
 
@@ -378,3 +380,6 @@ class Enum(object):
 
     def __iter__(self):
         return iter(self.enums)
+
+
+NoneType = type(None)
